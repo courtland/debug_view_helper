@@ -8,7 +8,7 @@ module ViewDebugHelper
   def debug_popup
     @raw = false
     popup_create do |script|
-      script << add("<html><head><title>Rails Debug Console_#{@controller.class.name}</title>")
+      script << add("<html><head><title>Rails Debug Console_#{controller.class.name}</title>")
       script << add("<style type='text/css'> body {background-color:#FFFFFF;} </style>" )
       render_style(script)
       script << add('</head><body>' )
@@ -27,7 +27,14 @@ module ViewDebugHelper
 
   private
 
-  IGNORE = ['template_root', 'template_class', 'response', '_response', 'template', 'session', '_session', 'url', 'params', '_params', 'variables_added', 'ignore_missing_templates', 'cookies', '_cookies', 'request', '_request', 'logger', 'flash', '_flash', 'headers', '_headers', 'before_filter_chain_aborted' ] unless const_defined?(:IGNORE)
+  IGNORE = ['_csrf_token', 'session_id', '@template', '@_request',
+  'hover_supported', 'input_device_type', 'template_root', 'template_class',
+  'response', '_response', 'template', '@_view_renderer', '@component_flash',
+  '@_response_body', '@_view_context_class', '@_lookup_context', '@_routes',
+  '@_config', '@_prefixes', '@_action_name', 'session', '_session', 'url',
+  'params', '_params', 'variables_added', 'ignore_missing_templates',
+  'cookies', '_cookies', 'request', '_request', 'logger', 'flash', '_flash',
+  'headers', '_headers', 'before_filter_chain_aborted' ] unless const_defined?(:IGNORE)
 
   def render_style(script)
     script << add("<style type='text/css'> table.debug {width:100%;border: 0;} table.debug th {text-align: left; background-color:#CCCCCC;font-weight: bold;} table.debug td {background-color:#EEEEEE; vertical-align: top;} table.debug td.key {color: blue;} table.debug td {color: green;}</style>" )
@@ -37,20 +44,22 @@ module ViewDebugHelper
     script << add("<table class='debug'><colgroup id='key-column'/>" )
     popup_header(script, 'Rails Debug Console')
 
-    if ! @controller.params.nil?
+    if ! controller.params.nil?
       popup_header(script, 'Request Parameters:')
-      @controller.params.each do |key, value|
+      controller.params.each do |key, value|
         popup_data(script, h(key), h(value.inspect).gsub(/,/, ',<br/>')) unless IGNORE.include?(key)
       end
     end
 
-    dump_vars(script, 'Session Variables:', @controller.session.instance_variable_get("@data"))
-    dump_vars(script, 'Flash Variables:', @controller.flash)
-    if view_debug_display_assigns and not @controller.assigns.nil?
+    dump_vars(script, 'Session Variables:', controller.session.to_hash)
+    dump_vars(script, 'Flash Variables:', controller.send(:flash))
+    assigns = controller.instance_variables.reject { |v| controller.protected_instance_variables.include?(v) }
+    if view_debug_display_assigns and not assigns.nil?
       popup_header(script, 'Assigned Template Variables:')
-      @controller.assigns.each do |k, v|
-        if (not @view_debug_ignores) or (not @view_debug_ignores.include?(k))
-          popup_data(script, h(k), dump_obj(v)) unless IGNORE.include?(k)
+      assigns.each do |k|
+        unless IGNORE.include?(k)
+          v = controller.instance_variable_get(k)
+          popup_data(script, h(k), dump_obj(v))
         end
       end
     end
@@ -75,7 +84,7 @@ module ViewDebugHelper
   def popup_create
     script = "<script language='javascript'>\n<!--\n"
     script << "function show_debug_popup() {\n"
-    script << "_rails_console = window.open(\"\",\"#{@controller.class.name.tr(':','')}\",\"width=680,height=600,resizable,scrollbars=yes\");\n"
+    script << "_rails_console = window.open(\"\",\"#{controller.class.name.tr(':','')}\",\"width=680,height=600,resizable,scrollbars=yes\");\n"
     yield script
     script << "_rails_console.document.close();\n"
     script << "}\n"
@@ -103,10 +112,6 @@ module ViewDebugHelper
 end
 
 class ActionController::Base
-  alias :original_flash :flash
-  def flash(refresh = false)
-    original_flash(refresh)
-  end
   @@view_debug_display_assigns = true
   cattr_accessor :view_debug_display_assigns
   helper_method :view_debug_display_assigns

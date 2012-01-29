@@ -116,3 +116,5 @@ class ActionController::Base
   cattr_accessor :view_debug_display_assigns
   helper_method :view_debug_display_assigns
 end
+
+ActionView::Base.send :include, ViewDebugHelper

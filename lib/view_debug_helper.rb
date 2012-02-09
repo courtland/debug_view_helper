@@ -27,15 +27,6 @@ module ViewDebugHelper
 
   private
 
-  IGNORE = ['_csrf_token', 'session_id', '@template', '@_request',
-  'hover_supported', 'input_device_type', 'template_root', 'template_class',
-  'response', '_response', 'template', '@_view_renderer', '@component_flash',
-  '@_response_body', '@_view_context_class', '@_lookup_context', '@_routes',
-  '@_config', '@_prefixes', '@_action_name', 'session', '_session', 'url',
-  'params', '_params', 'variables_added', 'ignore_missing_templates',
-  'cookies', '_cookies', 'request', '_request', 'logger', 'flash', '_flash',
-  'headers', '_headers', 'before_filter_chain_aborted' ] unless const_defined?(:IGNORE)
-
   def render_style(script)
     script << add("<style type='text/css'> table.debug {width:100%;border: 0;} table.debug th {text-align: left; background-color:#CCCCCC;font-weight: bold;} table.debug td {background-color:#EEEEEE; vertical-align: top;} table.debug td.key {color: blue;} table.debug td {color: green;}</style>" )
   end
@@ -47,7 +38,7 @@ module ViewDebugHelper
     if ! controller.params.nil?
       popup_header(script, 'Request Parameters:')
       controller.params.each do |key, value|
-        popup_data(script, h(key), h(value.inspect).gsub(/,/, ',<br/>')) unless IGNORE.include?(key)
+        popup_data(script, h(key), h(value.inspect).gsub(/,/, ',<br/>'))
       end
     end
 
@@ -57,7 +48,7 @@ module ViewDebugHelper
     if view_debug_display_assigns and not assigns.nil?
       popup_header(script, 'Assigned Template Variables:')
       assigns.each do |k|
-        unless IGNORE.include?(k)
+        unless k =~ /^@?_/
           v = controller.instance_variable_get(k)
           popup_data(script, h(k), dump_obj(v))
         end
@@ -70,7 +61,11 @@ module ViewDebugHelper
   def dump_vars(script, header, vars)
     return if vars.nil?
     popup_header(script, header)
-    vars.each {|k, v| popup_data(script, h(k), dump_obj(v)) unless IGNORE.include?(k)}
+    vars.each do |k, v|
+      unless k =~ /^@?_/
+        popup_data(script, h(k), dump_obj(v))
+      end
+    end
   end
 
   def popup_header(script, heading)
